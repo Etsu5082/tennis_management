@@ -7,7 +7,7 @@ export const getAllSettings = async (req: AuthRequest, res: Response) => {
     const result = await pool.query('SELECT * FROM settings ORDER BY key');
 
     const settings: { [key: string]: any } = {};
-    result.rows.forEach(row => {
+    result.rows.forEach((row: any) => {
       settings[row.key] = {
         value: row.value,
         description: row.description

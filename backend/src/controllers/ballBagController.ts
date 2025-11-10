@@ -117,7 +117,7 @@ export const getBallBagHolders = async (req: AuthRequest, res: Response) => {
       return res.json([]);
     }
 
-    const userIds = participantsResult.rows.map(r => r.user_id);
+    const userIds = participantsResult.rows.map((r: any) => r.user_id);
 
     // Get ball bags held by participants
     const result = await pool.query(

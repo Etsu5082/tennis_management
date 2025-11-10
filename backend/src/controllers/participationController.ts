@@ -166,7 +166,7 @@ export const getParticipationStats = async (req: AuthRequest, res: Response) => 
       waitlist: 0
     };
 
-    result.rows.forEach(row => {
+    result.rows.forEach((row: any) => {
       stats[row.status as keyof typeof stats] = parseInt(row.count);
     });
 

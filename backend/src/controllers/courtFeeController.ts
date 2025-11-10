@@ -133,7 +133,7 @@ export const getAllUsersCourtFeeStats = async (req: AuthRequest, res: Response) 
 
     const annualFee = parseInt(settingsResult.rows[0]?.value || '0');
 
-    const statsWithDiff = result.rows.map(row => ({
+    const statsWithDiff = result.rows.map((row: any) => ({
       ...row,
       total_paid: parseInt(row.total_paid),
       practice_count: parseInt(row.practice_count),
