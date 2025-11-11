@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Practice, Participation, ParticipationStats } from '../types';
-import { practiceAPI, participationAPI } from '../services/api';
+import { practiceAPI, participationAPI, ballBagAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+
+interface BallBagHolder {
+  ball_bag_id: number;
+  ball_bag_name: string;
+  user_id: number;
+  user_name: string;
+}
 
 const PracticeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +18,7 @@ const PracticeDetail: React.FC = () => {
   const [practice, setPractice] = useState<Practice | null>(null);
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [stats, setStats] = useState<ParticipationStats | null>(null);
+  const [ballBagHolders, setBallBagHolders] = useState<BallBagHolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [myParticipation, setMyParticipation] = useState<Participation | null>(null);
@@ -41,6 +49,15 @@ const PracticeDetail: React.FC = () => {
         (p: Participation) => p.user_id === user?.id
       );
       setMyParticipation(myPart || null);
+
+      // Fetch ball bag holders
+      try {
+        const holdersRes = await ballBagAPI.getHolders(practiceId);
+        setBallBagHolders(holdersRes.data);
+      } catch (error) {
+        // Ball bag holders might not exist, that's okay
+        setBallBagHolders([]);
+      }
     } catch (error) {
       console.error('Failed to fetch practice details:', error);
     } finally {
@@ -238,6 +255,44 @@ const PracticeDetail: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Ball Bag Holders Section */}
+            {ballBagHolders.length > 0 && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg p-8 border-2 border-amber-200">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-3xl">🎒</span>
+                  <h2 className="text-2xl font-bold text-gray-900">ボルバ持ち帰り担当者</h2>
+                </div>
+
+                <div className="space-y-4">
+                  {ballBagHolders.map((holder) => (
+                    <div
+                      key={holder.ball_bag_id}
+                      className="flex items-center justify-between p-4 bg-white border-2 border-amber-200 rounded-xl"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                          🎾
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-900 text-lg">{holder.ball_bag_name}</div>
+                          <div className="text-amber-700 font-semibold">{holder.user_name}</div>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 bg-amber-100 text-amber-800 font-bold rounded-lg">
+                        担当
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-4 bg-white/50 rounded-lg border border-amber-200">
+                  <p className="text-sm text-gray-600">
+                    💡 ボルバ担当者は練習当日、ボール袋を持参してください
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
