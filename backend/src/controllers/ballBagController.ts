@@ -161,3 +161,122 @@ export const getBallBagStats = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Auto-assign ball bag holders based on practice courts and participant history
+export const autoAssignBallBagHolders = async (req: AuthRequest, res: Response) => {
+  try {
+    const { practice_id } = req.body;
+
+    if (!practice_id) {
+      return res.status(400).json({ error: 'Practice ID is required' });
+    }
+
+    // Get practice details
+    const practiceResult = await pool.query(
+      'SELECT * FROM practices WHERE id = $1',
+      [practice_id]
+    );
+
+    if (practiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Practice not found' });
+    }
+
+    const practice = practiceResult.rows[0];
+    const requiredBallBags = practice.courts; // 1面につき1個
+
+    // Get attending participants (exclude late)
+    const participantsResult = await pool.query(
+      `SELECT DISTINCT p.user_id, u.name
+       FROM participations p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.practice_id = $1 AND p.status = 'attending'`,
+      [practice_id]
+    );
+
+    if (participantsResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No attending participants found' });
+    }
+
+    // Get participants with their last takeaway date (oldest first)
+    const candidatesResult = await pool.query(
+      `SELECT
+        u.id as user_id,
+        u.name,
+        MAX(bbh.taken_at) as last_takeaway_date
+       FROM users u
+       INNER JOIN participations p ON u.id = p.user_id
+       LEFT JOIN ball_bag_histories bbh ON u.id = bbh.user_id
+       WHERE p.practice_id = $1 AND p.status = 'attending'
+       GROUP BY u.id, u.name
+       ORDER BY last_takeaway_date ASC NULLS FIRST, u.name`,
+      [practice_id]
+    );
+
+    const candidates = candidatesResult.rows;
+
+    if (candidates.length < requiredBallBags) {
+      return res.status(400).json({
+        error: `Not enough attending participants. Required: ${requiredBallBags}, Available: ${candidates.length}`
+      });
+    }
+
+    // Get available ball bags
+    const ballBagsResult = await pool.query(
+      'SELECT * FROM ball_bags ORDER BY id LIMIT $1',
+      [requiredBallBags]
+    );
+
+    if (ballBagsResult.rows.length < requiredBallBags) {
+      return res.status(400).json({
+        error: `Not enough ball bags. Required: ${requiredBallBags}, Available: ${ballBagsResult.rows.length}`
+      });
+    }
+
+    // Assign ball bags to selected participants
+    const client = await pool.connect();
+    const assignments = [];
+
+    try {
+      await client.query('BEGIN');
+
+      for (let i = 0; i < requiredBallBags; i++) {
+        const ballBag = ballBagsResult.rows[i];
+        const participant = candidates[i];
+
+        // Record history
+        await client.query(
+          'INSERT INTO ball_bag_histories (ball_bag_id, practice_id, user_id) VALUES ($1, $2, $3)',
+          [ballBag.id, practice_id, participant.user_id]
+        );
+
+        // Update current holder
+        await client.query(
+          'UPDATE ball_bags SET current_holder_id = $1 WHERE id = $2',
+          [participant.user_id, ballBag.id]
+        );
+
+        assignments.push({
+          ball_bag_id: ballBag.id,
+          ball_bag_name: ballBag.name,
+          user_id: participant.user_id,
+          user_name: participant.name
+        });
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: 'Ball bag holders assigned successfully',
+        assignments
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Auto assign ball bag holders error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

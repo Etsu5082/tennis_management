@@ -95,6 +95,23 @@ const PracticeDetail: React.FC = () => {
     }
   };
 
+  const handleAutoAssignBallBags = async () => {
+    if (!window.confirm(`ボルバ担当者を自動割り当てしますか？\n\n${practice?.courts}面の練習のため、${practice?.courts}個のボルバを割り当てます。\n持ち帰り日付が最も古い参加者から順に選択されます。`)) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await ballBagAPI.autoAssign(parseInt(id!));
+      alert(`ボルバ担当者の自動割り当てが完了しました。\n\n${response.data.assignments.map((a: any) => `${a.ball_bag_name}: ${a.user_name}`).join('\n')}`);
+      await fetchData();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'ボルバ担当者の自動割り当てに失敗しました');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; text: string; label: string; icon: string }> = {
       attending: { bg: 'bg-green-100', text: 'text-green-700', label: '参加', icon: '✓' },
@@ -257,40 +274,59 @@ const PracticeDetail: React.FC = () => {
             </div>
 
             {/* Ball Bag Holders Section */}
-            {ballBagHolders.length > 0 && (
+            {(ballBagHolders.length > 0 || user?.role === 'admin') && (
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg p-8 border-2 border-amber-200">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-3xl">🎒</span>
-                  <h2 className="text-2xl font-bold text-gray-900">ボルバ持ち帰り担当者</h2>
-                </div>
-
-                <div className="space-y-4">
-                  {ballBagHolders.map((holder) => (
-                    <div
-                      key={holder.ball_bag_id}
-                      className="flex items-center justify-between p-4 bg-white border-2 border-amber-200 rounded-xl"
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🎒</span>
+                    <h2 className="text-2xl font-bold text-gray-900">ボルバ持ち帰り担当者</h2>
+                  </div>
+                  {user?.role === 'admin' && (
+                    <button
+                      onClick={handleAutoAssignBallBags}
+                      disabled={submitting}
+                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                          🎾
-                        </div>
-                        <div>
-                          <div className="font-bold text-gray-900 text-lg">{holder.ball_bag_name}</div>
-                          <div className="text-amber-700 font-semibold">{holder.user_name}</div>
-                        </div>
-                      </div>
-                      <div className="px-4 py-2 bg-amber-100 text-amber-800 font-bold rounded-lg">
-                        担当
-                      </div>
-                    </div>
-                  ))}
+                      自動割り当て
+                    </button>
+                  )}
                 </div>
 
-                <div className="mt-4 p-4 bg-white/50 rounded-lg border border-amber-200">
-                  <p className="text-sm text-gray-600">
-                    💡 ボルバ担当者は練習当日、ボール袋を持参してください
-                  </p>
-                </div>
+                {ballBagHolders.length > 0 ? (
+                  <>
+                    <div className="space-y-4">
+                      {ballBagHolders.map((holder) => (
+                        <div
+                          key={holder.ball_bag_id}
+                          className="flex items-center justify-between p-4 bg-white border-2 border-amber-200 rounded-xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                              🎾
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-900 text-lg">{holder.ball_bag_name}</div>
+                              <div className="text-amber-700 font-semibold">{holder.user_name}</div>
+                            </div>
+                          </div>
+                          <div className="px-4 py-2 bg-amber-100 text-amber-800 font-bold rounded-lg">
+                            担当
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 p-4 bg-white/50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-gray-600">
+                        💡 ボルバ担当者は練習当日、ボール袋を持参してください
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    まだボルバ担当者が割り当てられていません
+                  </div>
+                )}
               </div>
             )}
           </div>

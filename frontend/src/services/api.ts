@@ -83,6 +83,7 @@ export const ballBagAPI = {
   create: (data: any) => api.post('/ball-bags', data),
   getAll: () => api.get('/ball-bags'),
   recordTakeaway: (data: any) => api.post('/ball-bags/takeaway', data),
+  autoAssign: (practice_id: number) => api.post('/ball-bags/auto-assign', { practice_id }),
   getHistory: (ballBagId: number) =>
     api.get(`/ball-bags/${ballBagId}/history`),
   getHolders: (practiceId: number) =>
