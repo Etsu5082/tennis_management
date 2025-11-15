@@ -28,7 +28,7 @@ services:
         sync: false
     healthCheckPath: /health
 
-  # Frontend
+  # Frontend - Option 1: As Static Site (current)
   - type: web
     name: tennis-circle-frontend
     env: static
@@ -41,5 +41,17 @@ services:
         value: https://tennis-circle-backend.onrender.com/api
     routes:
       - type: rewrite
-        source: /:path*
+        source: "/*"
         destination: /index.html
+
+  # Frontend - Option 2: As Web Service (uncomment if Static Site doesn't work)
+  # - type: web
+  #   name: tennis-circle-frontend-web
+  #   env: node
+  #   region: singapore
+  #   plan: free
+  #   buildCommand: cd frontend && npm install && npm run build
+  #   startCommand: cd frontend && npm run serve
+  #   envVars:
+  #     - key: REACT_APP_API_URL
+  #       value: https://tennis-circle-backend.onrender.com/api
