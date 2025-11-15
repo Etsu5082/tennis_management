@@ -41,9 +41,5 @@ services:
         value: https://tennis-circle-backend.onrender.com/api
     routes:
       - type: rewrite
-        source: /*
+        source: /:path*
         destination: /index.html
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=0, must-revalidate
