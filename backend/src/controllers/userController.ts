@@ -7,7 +7,7 @@ import { parse } from 'csv-parse/sync';
 export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, student_id, registration_number, email, role, is_active, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, name, student_id, registration_number, email, role, grade, is_active, created_at FROM users ORDER BY created_at DESC'
     );
 
     res.json(result.rows);
@@ -22,7 +22,7 @@ export const getUser = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      'SELECT id, name, student_id, email, role, line_notify_token, is_active, created_at FROM users WHERE id = $1',
+      'SELECT id, name, student_id, email, role, grade, line_notify_token, is_active, created_at FROM users WHERE id = $1',
       [id]
     );
 
@@ -60,7 +60,7 @@ export const approveUser = async (req: AuthRequest, res: Response) => {
 export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, line_notify_token } = req.body;
+    const { name, line_notify_token, grade } = req.body;
 
     // Only allow users to update their own profile (except admins)
     if (req.user?.role !== 'admin' && req.user?.userId !== parseInt(id)) {
@@ -83,6 +83,12 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
       paramCount++;
     }
 
+    if (grade !== undefined) {
+      updates.push(`grade = $${paramCount}`);
+      values.push(grade);
+      paramCount++;
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
@@ -90,7 +96,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     values.push(id);
 
     const result = await pool.query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, name, email, role, line_notify_token`,
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, name, email, role, grade, line_notify_token`,
       values
     );
 
@@ -107,7 +113,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
 
 export const createUser = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, student_id, password, role, is_active, password_reset_required } = req.body;
+    const { name, student_id, password, role, grade, is_active, password_reset_required } = req.body;
 
     if (!name || !student_id || !password) {
       return res.status(400).json({ error: 'Name, student_id, and password are required' });
@@ -132,8 +138,8 @@ export const createUser = async (req: AuthRequest, res: Response) => {
     const requirePasswordReset = password_reset_required !== undefined ? password_reset_required : false;
 
     const result = await pool.query(
-      'INSERT INTO users (name, student_id, password_hash, role, is_active, password_reset_required) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, student_id, role, is_active, password_reset_required, created_at',
-      [name, student_id, passwordHash, userRole, userIsActive, requirePasswordReset]
+      'INSERT INTO users (name, student_id, password_hash, role, grade, is_active, password_reset_required) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, student_id, role, grade, is_active, password_reset_required, created_at',
+      [name, student_id, passwordHash, userRole, grade || null, userIsActive, requirePasswordReset]
     );
 
     res.status(201).json({
@@ -179,16 +185,18 @@ export const importUsersFromCSV = async (req: AuthRequest, res: Response) => {
     for (const record of records) {
       try {
         // Try to detect CSV format
-        let name, student_id, registration_number;
+        let name, student_id, registration_number, grade;
 
         // Check if it's users1.csv format (Name,Kana,Year,user_number,password,...)
         if (record.length >= 5 && record[3] && record[4]) {
           name = record[0]; // Column 1: Name
+          grade = record[2] ? parseInt(record[2]) : null; // Column 3: Year
           registration_number = record[3]; // Column 4: user_number
           student_id = record[4]; // Column 5: password (actual student_id)
         } else {
           // Original format (名前,カタカナ,性別,学年,学部,学科,学籍番号,...)
           name = record[0]; // Column 1: Name
+          grade = record[3] ? parseInt(record[3]) : null; // Column 4: Grade (0-indexed: column 3)
           student_id = record[6]; // Column 7: Student ID (0-indexed: column 6)
           registration_number = record[14]; // Column 15: Registration Number (0-indexed: column 14)
         }
@@ -214,8 +222,8 @@ export const importUsersFromCSV = async (req: AuthRequest, res: Response) => {
 
         // Create user with password_reset_required = true
         const result = await pool.query(
-          'INSERT INTO users (name, student_id, registration_number, password_hash, role, is_active, password_reset_required) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, student_id, registration_number',
-          [name, student_id, registration_number || null, passwordHash, 'member', true, true]
+          'INSERT INTO users (name, student_id, registration_number, grade, password_hash, role, is_active, password_reset_required) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, student_id, registration_number, grade',
+          [name, student_id, registration_number || null, grade, passwordHash, 'member', true, true]
         );
 
         createdUsers.push(result.rows[0]);

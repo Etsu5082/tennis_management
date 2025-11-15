@@ -5,6 +5,7 @@ export interface User {
   registration_number?: string;
   email?: string;
   role: 'admin' | 'member';
+  grade?: number;
   password_reset_required?: boolean;
   line_notify_token?: string;
   is_active: boolean;

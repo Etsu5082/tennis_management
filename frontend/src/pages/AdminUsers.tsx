@@ -16,6 +16,7 @@ const AdminUsers: React.FC = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'member'>('member');
+  const [newUserGrade, setNewUserGrade] = useState<number | ''>('');
 
   useEffect(() => {
     if (isAdmin) {
@@ -81,9 +82,10 @@ const AdminUsers: React.FC = () => {
     try {
       await userAPI.create({
         name: newUserName,
-        email: newUserEmail,
+        student_id: newUserEmail,
         password: newUserPassword,
         role: newUserRole,
+        grade: newUserGrade === '' ? undefined : newUserGrade,
         is_active: true
       });
       setSuccessMessage('ユーザーを作成しました');
@@ -91,6 +93,7 @@ const AdminUsers: React.FC = () => {
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserRole('member');
+      setNewUserGrade('');
       setShowCreateForm(false);
       fetchUsers();
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -211,15 +214,32 @@ const AdminUsers: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">メールアドレス</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">学籍番号</label>
                   <input
-                    type="email"
+                    type="text"
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
-                    placeholder="user@example.com"
+                    placeholder="S12345678"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">学年</label>
+                  <select
+                    value={newUserGrade}
+                    onChange={(e) => setNewUserGrade(e.target.value === '' ? '' : parseInt(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">選択してください</option>
+                    <option value="1">1年生</option>
+                    <option value="2">2年生</option>
+                    <option value="3">3年生</option>
+                    <option value="4">4年生</option>
+                    <option value="5">大学院1年</option>
+                    <option value="6">大学院2年</option>
+                    <option value="7">その他</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">パスワード</label>
@@ -327,6 +347,9 @@ const AdminUsers: React.FC = () => {
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{user.name}</h3>
                       <p className="text-gray-600 mt-1">学籍番号: {user.student_id}</p>
+                      {user.grade && (
+                        <p className="text-gray-600 mt-1">学年: {user.grade}年</p>
+                      )}
                       {user.registration_number && (
                         <p className="text-gray-600 mt-1">登録番号: {user.registration_number}</p>
                       )}
@@ -372,6 +395,9 @@ const AdminUsers: React.FC = () => {
                     学籍番号
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    学年
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                     登録番号
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
@@ -393,6 +419,9 @@ const AdminUsers: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">{user.student_id}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">{user.grade ? `${user.grade}年` : '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-600">{user.registration_number || '-'}</div>
